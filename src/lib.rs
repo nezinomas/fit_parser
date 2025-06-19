@@ -1,28 +1,32 @@
 use pyo3::prelude::*;
 use std::fs::File;
 use fitparser;
-use fitparser::{Value};
+use fitparser::{Value, FitDataRecord};
 use std::path::Path;
 use chrono::{DateTime, Utc};
+
 
 const SEMICIRCLES_TO_DEGREES: f64 = 180.0 / (1u64 << 31) as f64;
 
 
-#[pyfunction]
-fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
-    // let mut fit_file = File::open("a.fit")?;
+fn get_data(path: &str) -> PyResult<Vec<FitDataRecord>> {
     let path = Path::new(path);
     let mut fit_file = File::open(path).map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
 
-    let mut coordinates: Vec<(f64, f64)> = Vec::new();
     let records = fitparser::from_reader(&mut fit_file).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
-    for record in records {
+    Ok(records)
+}
 
-        let fields = record.fields();
+
+#[pyfunction]
+fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
+    let records = get_data(path)?;
+    let mut coordinates: Vec<(f64, f64)> = Vec::new();
+    for record in records.iter() {
         let mut lat: Option<i32> = None;
         let mut lon: Option<i32> = None;
 
-        for field in fields {
+        for field in record.fields() {
             match field.name() {
                 "position_lat" => if let Value::SInt32(v) = field.value() {
                     lat = Some(*v);
@@ -31,6 +35,9 @@ fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
                     lon = Some(*v)
                 },
                 _ => continue,
+            }
+            if lat.is_some() && lon.is_some() {
+                break;
             }
         }
 
