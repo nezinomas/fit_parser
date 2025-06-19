@@ -56,15 +56,9 @@ fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
 /// Extract timestamp from .FIT file as a string in ISO 8601 format.
 #[pyfunction]
 fn parse_timestamp(path: &str) -> PyResult<Option<String>> {
-    let path = Path::new(path);
-    let mut file = File::open(path)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
-
-    let records = fitparser::from_reader(&mut file)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
-    for record in records {
-        let fields = record.fields();
-        for field in fields {
+    let records = get_data(path)?;
+    for record in records.iter() {
+        for field in record.fields() {
             if field.name() == "timestamp" {
                 if let Value::Timestamp(ts) = field.value() {
                     let dt: DateTime<Utc> = (*ts).into();
