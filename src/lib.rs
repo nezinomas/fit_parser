@@ -1,22 +1,21 @@
+use chrono::{DateTime, Utc};
+use fitparser;
+use fitparser::{FitDataRecord, Value};
 use pyo3::prelude::*;
 use std::fs::File;
-use fitparser;
-use fitparser::{Value, FitDataRecord};
 use std::path::Path;
-use chrono::{DateTime, Utc};
-
 
 const SEMICIRCLES_TO_DEGREES: f64 = 180.0 / (1u64 << 31) as f64;
 
-
 fn get_data(path: &str) -> PyResult<Vec<FitDataRecord>> {
     let path = Path::new(path);
-    let mut fit_file = File::open(path).map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
+    let mut fit_file = File::open(path)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
 
-    let records = fitparser::from_reader(&mut fit_file).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let records = fitparser::from_reader(&mut fit_file)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
     Ok(records)
 }
-
 
 #[pyfunction]
 fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
@@ -28,12 +27,16 @@ fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
 
         for field in record.fields() {
             match field.name() {
-                "position_lat" => if let Value::SInt32(v) = field.value() {
-                    lat = Some(*v);
+                "position_lat" => {
+                    if let Value::SInt32(v) = field.value() {
+                        lat = Some(*v);
+                    }
                 }
-                "position_long" => if let Value::SInt32(v) = field.value() {
-                    lon = Some(*v)
-                },
+                "position_long" => {
+                    if let Value::SInt32(v) = field.value() {
+                        lon = Some(*v)
+                    }
+                }
                 _ => continue,
             }
             if lat.is_some() && lon.is_some() {
@@ -43,21 +46,22 @@ fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
 
         if let (Some(lat_val), Some(lon_val)) = (lat, lon) {
             let lat_deg = (lat_val as f64 * SEMICIRCLES_TO_DEGREES).round_to(5);
-              let lon_deg = (lon_val as f64 * SEMICIRCLES_TO_DEGREES).round_to(5);
+            let lon_deg = (lon_val as f64 * SEMICIRCLES_TO_DEGREES).round_to(5);
             coordinates.push((lon_deg, lat_deg));
         }
     }
     Ok(coordinates)
 }
 
-
 /// Extract timestamp from .FIT file as a string in ISO 8601 format.
 #[pyfunction]
 fn parse_timestamp(path: &str) -> PyResult<Option<String>> {
     let path = Path::new(path);
-    let mut file = File::open(path).map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
+    let mut file = File::open(path)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
 
-    let records = fitparser::from_reader(&mut file).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let records = fitparser::from_reader(&mut file)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
     for record in records {
         let fields = record.fields();
         for field in fields {
