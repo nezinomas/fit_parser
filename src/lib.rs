@@ -30,7 +30,7 @@ fn read_fit_records(path: &str) -> PyResult<Vec<FitDataRecord>> {
 }
 
 /// Parse coordinates from FIT records into a list of (longitude, latitude) tuples.
-fn parse_records(records: &[FitDataRecord]) -> Vec<(f64, f64)> {
+fn parse_records_for_coordinates(records: &[FitDataRecord]) -> Vec<(f64, f64)> {
     let mut coordinates = Vec::with_capacity(records.len());
 
     for record in records {
@@ -82,7 +82,7 @@ fn parse_records_for_timestamp(records: &[FitDataRecord]) -> Option<String> {
 #[pyfunction]
 pub fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
     let records = read_fit_records(path)?;
-    Ok(parse_records(&records))
+    Ok(parse_records_for_coordinates(&records))
 }
 
 /// Extract timestamp from .FIT file as a string in ISO 8601 format.
