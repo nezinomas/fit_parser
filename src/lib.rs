@@ -19,7 +19,7 @@ impl RoundTo for f64 {
     }
 }
 
-fn read_fit_records(path: &str) -> PyResult<Vec<FitDataRecord>> {
+fn get_data(path: &str) -> PyResult<Vec<FitDataRecord>> {
     let path = Path::new(path);
     let mut fit_file = File::open(path)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
@@ -29,11 +29,10 @@ fn read_fit_records(path: &str) -> PyResult<Vec<FitDataRecord>> {
     Ok(records)
 }
 
-/// Parse coordinates from FIT records into a list of (longitude, latitude) tuples.
-fn parse_records_for_coordinates(records: &[FitDataRecord]) -> Vec<(f64, f64)> {
-    let mut coordinates = Vec::with_capacity(records.len());
 
-    for record in records {
+fn get_coordinates(records: &[FitDataRecord]) -> Vec<(f64, f64)> {
+    let mut coordinates: Vec<(f64, f64)> = Vec::new();
+    for record in records.iter() {
         let mut lat: Option<i32> = None;
         let mut lon: Option<i32> = None;
 
@@ -44,12 +43,15 @@ fn parse_records_for_coordinates(records: &[FitDataRecord]) -> Vec<(f64, f64)> {
                         lat = Some(*v);
                     }
                 }
-                "position_lon" => {
+                "position_long" => {
                     if let Value::SInt32(v) = field.value() {
-                        lon = Some(*v);
+                        lon = Some(*v)
                     }
                 }
                 _ => continue,
+            }
+            if lat.is_some() && lon.is_some() {
+                break;
             }
         }
 
@@ -59,11 +61,11 @@ fn parse_records_for_coordinates(records: &[FitDataRecord]) -> Vec<(f64, f64)> {
             coordinates.push((lon_deg, lat_deg));
         }
     }
-    coordinates.shrink_to_fit();
     coordinates
 }
 
-fn parse_records_for_timestamp(records: &[FitDataRecord]) -> Option<String> {
+
+fn get_timestamp(records: &[FitDataRecord]) -> Option<String> {
     for record in records {
         for field in record.fields() {
             if field.name() == "timestamp" {
@@ -77,20 +79,20 @@ fn parse_records_for_timestamp(records: &[FitDataRecord]) -> Option<String> {
     None
 }
 
-/// Parse coordinates from a .FIT file into a list of (longitude, latitude) tuples.
-/// Returns all valid coordinate pairs for use in a Django Geo app LineString.
+// Parses fit file and return [(longtiture, latitude), ...]
 #[pyfunction]
-pub fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
-    let records = read_fit_records(path)?;
-    Ok(parse_records_for_coordinates(&records))
+fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
+    let records = get_data(path)?;
+    Ok(get_coordinates(&records))
 }
 
 /// Extract timestamp from .FIT file as a string in ISO 8601 format.
 #[pyfunction]
 fn parse_timestamp(path: &str) -> PyResult<Option<String>> {
-    let records = read_fit_records(path)?;
-    Ok(parse_records_for_timestamp(&records))
+    let records = get_data(path)?;
+    Ok(get_timestamp(&records))
 }
+
 
 /// A Python module implemented in Rust.
 #[pymodule]
