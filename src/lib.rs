@@ -17,6 +17,7 @@ fn get_data(path: &str) -> PyResult<Vec<FitDataRecord>> {
     Ok(records)
 }
 
+/// Parse fit file and return [(longtiture, latitude), ...]
 #[pyfunction]
 fn parse_coordinates(path: &str) -> PyResult<Vec<(f64, f64)>> {
     let records = get_data(path)?;
